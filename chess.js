@@ -1,19 +1,30 @@
 var whitePieces = {"pawn":"♙", "knight": "♘", "bishop": "♗", "rook": "♖", "queen": "♕", "king": "♔"};
-var blackPieces = {"pawn":"&#9823;", "knight": "&#9822;", "bishop": "&#9821;", "rook": "&#9820;", "queen": "&#9819;", "king": "&#9818;"};
+var blackPieces = {"pawn":"♟", "knight": "♞", "bishop": "♝", "rook": "♜", "queen": "♛", "king": "♚"};
+var liftedPieces = {};
 
 $(document).ready(function(){
     activateHighlighting();
+    attachCallbacks();
+    $("#no_moves").hide();
 });
 
 function activateHighlighting(){
-    $(".black").mouseenter(function(){$(this).css("background-color", "FFFF00")});
-    $(".black").mouseleave(function(){$(this).css("background-color", "999")});
-
-    $(".white").mouseenter(function(){$(this).css("background-color", "FFFF00")});
-    $(".white").mouseleave(function(){$(this).css("background-color", "FFF")});
+    $(".black, .white").filter(function(){
+        var piece = $(this).text();
+        return Object.values(whitePieces).includes(piece);
+    }).each(function(){
+        $(this).mouseenter(function(){$(this).css("background-color", "FFFF00")});
+        var tileColor = $(this).attr("class");
+        if(tileColor === "black"){
+            $(this).mouseleave(function(){$(this).css("background-color", "#999")});
+        }else{
+            $(this).mouseleave(function(){$(this).css("background-color", "#FFF")});
+        }
+        $(this).css("cursor", "pointer");
+    })
 }
 
-function deactivateHighlighting(){
+function deactivateCallbacks(){
     $(".black, .white").unbind();
 }
 
@@ -21,7 +32,88 @@ function attachCallbacks(){
     $(".black, .white").filter(function(){
         return $(this).text() === whitePieces["pawn"];
     }).each(function(){
-        $(this).click(attachPawnCallback(this));
+        attachPawnCallback(this);
+    });
+
+    $(".black, .white").filter(function(){
+        return $(this).text() === whitePieces["knight"];
+    }).each(function(){
+        attachKnightCallback(this);
+    });
+
+    $(".black, .white").filter(function(){
+        return $(this).text() === whitePieces["bishop"];
+    }).each(function(){
+        attachBishopCallback(this);
+    });
+
+    $(".black, .white").filter(function(){
+        return $(this).text() === whitePieces["king"];
+    }).each(function(){
+        attachKingCallback(this);
+    });
+
+    $(".black, .white").filter(function(){
+        return $(this).text() === whitePieces["rook"];
+    }).each(function(){
+        attachRookCallback(this);
+    });
+
+    $(".black, .white").filter(function(){
+        return $(this).text() === whitePieces["queen"];
+    }).each(function(){
+        attachQueenCallback(this);
+    });
+}
+
+function executeMove(piece, move){
+    var pieceChar = $(piece).text();
+    $(piece).text("");
+    $("#"+move).text(pieceChar);
+    var color = $(piece).attr("class") === "black" ? "#999" : "#FFF";
+    $(piece).css("background-color", color);
+}
+
+function clearXs(){
+    $(".black, .white").filter(function(){
+        return $(this).text() === "X";
+    }).each(function(){
+        $(this).text("");
+    });
+}
+
+function displayNoMovesMessage(){
+    $("#no_moves").show();
+    $("#no_moves").delay(2000).fadeOut();
+}
+
+function placePieces(move){
+    var iteratedItems = []
+    if(liftedPieces[move]){
+        delete liftedPieces[move];
+    }
+    for(var item in liftedPieces){
+        $("#"+item).text(liftedPieces[item]);
+        iteratedItems.push(item);
+    }
+    for(let obj of iteratedItems){
+        delete liftedPieces[obj];
+    }
+}
+
+function markMove(piece, move){
+    var tileOccupant = $("#"+move).text();
+    if(Object.values(blackPieces).includes(tileOccupant)){
+        liftedPieces[move] = tileOccupant;
+    }
+    $("#"+move).text("X");
+    $("#"+move).click(function(){
+        executeMove(piece, move);
+        deactivateCallbacks();
+        activateHighlighting();
+        attachCallbacks();
+        clearXs();
+        placePieces(move);
     });
 }
 
@@ -29,27 +121,211 @@ function attachPawnCallback(pawn){
     $(pawn).click(function(){
         var position = $(pawn).attr("id");
         var possibleMoves = [];
-        var y = parseInt(pawn[1]);
-        if(position[1]==='2'){
-            y += 2;
-            var potentialMove = position[0] + String(y);
-            if($("#" + potentialMove).val() === ""){
+        var y = parseInt(position[1]);
+        if(y === 1){
+            var destY = y + 2;
+            var potentialMove = position[0] + String(destY);
+            if($("#" + potentialMove).text() === ""){
                 possibleMoves.push(potentialMove);
             }
+        }
+        var destY2 = y + 1;
+        var potentialMove = position[0] + String(destY2);
+        if($("#" + potentialMove).text() === "" && y <= 8){
+                possibleMoves.push(potentialMove);
+        }
+        var rightDiag = String(parseInt(position[0])+1) + String(parseInt(position[1])+1);
+        var leftDiag = String(parseInt(position[0]-1)) + String(parseInt(position[1])+1);
+        if(Object.values(blackPieces).includes($("#"+rightDiag).text())){
+            possibleMoves.push(rightDiag);
+        }
+        if(Object.values(blackPieces).includes($("#"+leftDiag).text())){
+            possibleMoves.push(leftDiag);
+        }
+        if(possibleMoves.length === 0){
+
+            return;
         }else{
-            y += 1;
-            var potentialMove = position[0] + String(y);
-            if($("#" + potentialMove).val() === "" && y <= 8){
-                possibleMoves.push(possibleMove);
+            deactivateCallbacks();
+            var piece = this;
+            for(let move of possibleMoves){
+                markMove(piece, move);
             }
         }
     });
 }
 
-function attachKnightCallback(){}
+function knightKingFilter(move){
+    if(move[0] === "-" || move[1] === "-" || move[2] === "-"){
+        return false;
+    }
+    if(parseInt(move[0]) < 0 || parseInt(move[0]) > 7){
+        return false;
+    }
+    if(parseInt(move[1]) < 0 || parseInt(move[1]) > 7){
+        return false;
+    }
+    var piece = $("#"+move).text();
+    if(Object.values(whitePieces).includes(piece)){
+        return false;
+    }
+    return true;
+}
 
-function attachQueenCallback(){}
+function attachKnightCallback(knight){
+        $(knight).click(function(){
+        var position = $(knight).attr("id");
+        var possibleMoves = [];
+        var x = parseInt(position[0]);
+        var y = parseInt(position[1]);
+        possibleMoves.push(String(x+2)+String(y+1));
+        possibleMoves.push(String(x+1)+String(y+2));
+        possibleMoves.push(String(x+2)+String(y-1));
+        possibleMoves.push(String(x+1)+String(y-2));
+        possibleMoves.push(String(x-1)+String(y+2));
+        possibleMoves.push(String(x-2)+String(y+1));
+        possibleMoves.push(String(x-1)+String(y-2));
+        possibleMoves.push(String(x-2)+String(y-1));
+        var finalMoves = possibleMoves.filter(knightKingFilter);
+        if(finalMoves.length === 0){
+            displayNoMovesMessage();
+            return;
+        }else{
+            deactivateCallbacks();
+            var piece = this;
+            for(let move of finalMoves){
+                markMove(piece, move);
+            }
+        }
+    });
+}
 
-function attachKingCallback(){}
+function attachQueenCallback(queen){
+    $(queen).click(function(){
+        var position = $(queen).attr("id");
+        var finalMoves = [];
+        var x = parseInt(position[0]);
+        var y = parseInt(position[1]);
+        finalMoves = finalMoves.concat(directionalMoves(x, y, 1, 1));
+        finalMoves = finalMoves.concat(directionalMoves(x, y, 1, -1));
+        finalMoves = finalMoves.concat(directionalMoves(x, y, -1, -1));
+        finalMoves = finalMoves.concat(directionalMoves(x, y, -1, 1));
+        finalMoves = finalMoves.concat(directionalMoves(x, y, 1, 0));
+        finalMoves = finalMoves.concat(directionalMoves(x, y, 0, -1));
+        finalMoves = finalMoves.concat(directionalMoves(x, y, -1, 0));
+        finalMoves = finalMoves.concat(directionalMoves(x, y,  0, 1));
+        if(finalMoves.length === 0){
+            displayNoMovesMessage();
+            return;
+        }else{
+            deactivateCallbacks();
+            var piece = this;
+            for(let move of finalMoves){
+                markMove(piece, move);
+            }
+        }
+    });
+}
 
-function attachBishopCallback(){}
+function attachKingCallback(king){
+    $(king).click(function(){
+        var position = $(king).attr("id");
+        var possibleMoves = [];
+        var x = parseInt(position[0]);
+        var y = parseInt(position[1]);
+        possibleMoves.push(String(x+1)+String(y));
+        possibleMoves.push(String(x+1)+String(y+1));
+        possibleMoves.push(String(x+1)+String(y-1));
+        possibleMoves.push(String(x-1)+String(y));
+        possibleMoves.push(String(x-1)+String(y+1));
+        possibleMoves.push(String(x-1)+String(y-1));
+        possibleMoves.push(String(x)+String(y-1));
+        possibleMoves.push(String(x)+String(y+1));
+        var finalMoves = possibleMoves.filter(knightKingFilter);
+        if(finalMoves.length === 0){
+            displayNoMovesMessage();
+            return;
+        }else{
+            deactivateCallbacks();
+            var piece = this;
+            for(let move of finalMoves){
+                markMove(piece, move);
+            }
+        }
+    });
+}
+
+function directionalMoves(x, y, xInc, yInc){
+    var capturedPiece = false;
+    var x2 = x+xInc;
+    var y2 = y+yInc;
+    var moves = [];
+    while(true){
+        if(capturedPiece){
+            break;
+        }
+        if(x2 >= 8 || x2 < 0){
+            break;
+        }
+        if(y2 >= 8 || y2 < 0){
+            break;
+        }
+        var current = $("#" + String(x2) + String(y2)).text();
+        if(Object.values(whitePieces).includes(current)){
+            break;
+        }
+        if(Object.values(blackPieces).includes(current)){
+            capturedPiece = true;
+        }
+        moves.push(String(x2) + String(y2));
+        x2 = x2 + xInc;
+        y2 = y2 + yInc;
+    }
+    return moves;
+}
+
+function attachBishopCallback(bishop){
+    $(bishop).click(function(){
+        var position = $(bishop).attr("id");
+        var finalMoves = [];
+        var x = parseInt(position[0]);
+        var y = parseInt(position[1]);
+        finalMoves = finalMoves.concat(directionalMoves(x, y, 1, 1));
+        finalMoves = finalMoves.concat(directionalMoves(x, y, 1, -1));
+        finalMoves = finalMoves.concat(directionalMoves(x, y, -1, -1));
+        finalMoves = finalMoves.concat(directionalMoves(x, y, -1, 1));
+        if(finalMoves.length === 0){
+            displayNoMovesMessage();
+            return;
+        }else{
+            deactivateCallbacks();
+            var piece = this;
+            for(let move of finalMoves){
+                markMove(piece, move);
+            }
+        }
+    });
+}
+
+function attachRookCallback(rook){
+    $(rook).click(function(){
+        var position = $(rook).attr("id");
+        var finalMoves = [];
+        var x = parseInt(position[0]);
+        var y = parseInt(position[1]);
+        finalMoves = finalMoves.concat(directionalMoves(x, y, 1, 0));
+        finalMoves = finalMoves.concat(directionalMoves(x, y, 0, -1));
+        finalMoves = finalMoves.concat(directionalMoves(x, y, -1, 0));
+        finalMoves = finalMoves.concat(directionalMoves(x, y,  0, 1));
+        if(finalMoves.length === 0){
+            displayNoMovesMessage();
+            return;
+        }else{
+            deactivateCallbacks();
+            var piece = this;
+            for(let move of finalMoves){
+                markMove(piece, move);
+            }
+        }
+    });
+}
