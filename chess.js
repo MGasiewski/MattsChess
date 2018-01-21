@@ -1,12 +1,29 @@
 var whitePieces = {"pawn":"♙", "knight": "♘", "bishop": "♗", "rook": "♖", "queen": "♕", "king": "♔"};
 var blackPieces = {"pawn":"♟", "knight": "♞", "bishop": "♝", "rook": "♜", "queen": "♛", "king": "♚"};
 var liftedPieces = {};
+var qsRookHasMoved = false;
+var ksRookHasMoved = false;
+var kingHasMoved = false;
+
 
 $(document).ready(function(){
     activateHighlighting();
     attachCallbacks();
+    bindEscape();
     $("#no_moves").hide();
 });
+
+function bindEscape(){
+    $(document).keyup(function(e){
+        if(e.keyCode === 27){
+            deactivateCallbacks();
+            activateHighlighting();
+            attachCallbacks();
+            clearXs();
+            placePieces();
+        }
+    });
+}
 
 function activateHighlighting(){
     $(".black, .white").filter(function(){
@@ -64,9 +81,48 @@ function attachCallbacks(){
     }).each(function(){
         attachQueenCallback(this);
     });
+    evaluateForCastling();
+}
+
+function evaluateForCastling(){
+    if(!qsRookHasMoved && !kingHasMoved){
+        let tileOne = $("#10").text();
+        let tileTwo = $("#20").text();
+        let tileThree = $("#30").text();
+        if(tileOne === "" && tileTwo === "" && tileThree === ""){
+            $("#qs_castle").show();
+            $("#qs_castle").click(qsCastle);
+        }else{
+            $("#qs_castle").hide();
+        }
+    }else{
+        $("#qs_castle").hide();
+    }
+    if(!ksRookHasMoved && !kingHasMoved){
+        let tileOne = $("#50").text();
+        let tileTwo = $("#60").text();
+        if(tileOne === "" && tileTwo === ""){
+            $("#ks_castle").show()
+            $("#ks_castle").click(ksCastle);
+        }else{
+            $("#ks_castle").hide();
+        }
+    }else{
+        $("#ks_castle").hide();
+    }
 }
 
 function executeMove(piece, move){
+    if($(piece).attr("id")==="00"){
+        qsRookHasMoved = true;
+    }
+
+    if($(piece).attr("id")==="40"){
+        kingHasMoved = true;
+    }
+    if($(piece).attr("id")==="70"){
+        ksRookHasMoved = true;
+    }
     var pieceChar = $(piece).text();
     $(piece).text("");
     $("#"+move).text(pieceChar);
@@ -115,6 +171,30 @@ function markMove(piece, move){
         clearXs();
         placePieces(move);
     });
+}
+
+function qsCastle(){
+    deactivateCallbacks();
+    $("#40").text("");
+    $("#00").text("");
+    $("#20").text(whitePieces["king"]);
+    $("#30").text(whitePieces["rook"]);
+    kingHasMoved = true;
+    qsRookHasMoved = true;
+    activateHighlighting();
+    attachCallbacks();
+}
+
+function ksCastle(){
+    deactivateCallbacks();
+    $("#40").text("");
+    $("#70").text("");
+    $("#60").text(whitePieces["king"]);
+    $("#50").text(whitePieces["rook"]);
+    kingHasMoved = true;
+    ksRookHasMoved = true;
+    activateHighlighting();
+    attachCallbacks();
 }
 
 function attachPawnCallback(pawn){
